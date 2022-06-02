@@ -56,7 +56,7 @@ function FilterTableCep({ rows, registerRows }) {
 	const ITEM_HEIGHT = 48;
 
 	return (
-		<Paper sx={{ width: "100%", mt: 2 }}>
+		<Paper sx={{ mt: 2 }}>
 			<TableContainer sx={{ maxHeight: 500 }}>
 				<Table stickyHeader aria-label="sticky table">
 					<TableHead>

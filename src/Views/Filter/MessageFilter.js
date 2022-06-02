@@ -149,6 +149,7 @@ const MessageFilter = () => {
 
 		let dataCep = [];
 		let dataDistricts = [];
+		let dataDistrictCity = [];
 		let dataCitys = [];
 
 		var count = 0;
@@ -165,6 +166,7 @@ const MessageFilter = () => {
 			count++;
 			districts.forEach((dist) => {
 				dataDistricts.push(dist.district);
+				dataDistrictCity.push(dist.city);
 			});
 		}
 
@@ -199,6 +201,7 @@ const MessageFilter = () => {
 				district: {
 					exception: except,
 					districts: dataDistricts,
+					districtsCity: dataDistrictCity
 				},
 				city: dataCitys,
 				custom: [],
@@ -399,18 +402,6 @@ const MessageFilter = () => {
 											/> */}
 										{/* </Stack> */}
 									</FormControl>
-									<FormControl>
-										<LoadingButton
-											type="submit"
-											variant="contained"
-											loadingIndicator="Loading..."
-											loading={false}
-											size="medium"
-											sx={{ mt: 3, mb: 2 }}
-										>
-											Registrar
-										</LoadingButton>
-									</FormControl>
 								</Stack>
 							</Box>
 							<Box
@@ -457,6 +448,20 @@ const MessageFilter = () => {
 										<Custom />
 									</TabPanel>
 								</TabContext>
+								<Stack direction="row" justifyContent="flex-end">
+									<FormControl>
+										<LoadingButton
+											type="submit"
+											variant="contained"
+											loadingIndicator="Loading..."
+											loading={false}
+											size="medium"
+											sx={{ mt: 3, mb: 2 }}
+											>
+											Registrar
+										</LoadingButton>
+									</FormControl>
+								</Stack>
 							</Box>
 						</Stack>
 					</div>

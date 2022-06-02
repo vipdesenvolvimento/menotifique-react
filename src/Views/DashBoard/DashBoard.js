@@ -11,7 +11,6 @@ function initialError() {
 	return { message: "", type: "warning" };
 }
 
-
 const DashBoard = () => {
 	const [data, setData] = useState(null);
 	const [error, setError] = useState(initialError);
@@ -21,7 +20,7 @@ const DashBoard = () => {
 			await axios
 				.get("http://localhost:8000/api/activation")
 				.then((response) => {
-					if(response.data.result.length) {
+					if (response.data.result.length) {
 						setData(response.data);
 					}
 				})
@@ -81,7 +80,7 @@ const DashBoard = () => {
 		}, 20000);
 		apiActivation();
 	}, [error]);
-	
+
 	function cardMonitor(event) {
 		const dateNow = new Date().getTime();
 		const dateEnd = new Date(event.date_end).getTime();
@@ -142,15 +141,20 @@ const DashBoard = () => {
 							{error.message}
 						</FlashMessage>
 					)}
-					<Stack direction="row" spacing={2}>
+					<Box
+						sx={{
+							display: "flex",
+							flexWrap: "wrap",
+						}}
+					>
+						{/* <Stack direction="row" spacing={2}> */}
 						{data &&
-							data.result.length > 0 && (								
-								data.result.map((event) => {
-									return cardMonitor(event);
-								})
-							)
-						}
-					</Stack>
+							data.result.length > 0 &&
+							data.result.map((event) => {
+								return cardMonitor(event);
+							})}
+						{/* </Stack> */}
+					</Box>
 				</Box>
 			</Container>
 		</>

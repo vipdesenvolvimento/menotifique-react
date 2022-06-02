@@ -9,23 +9,23 @@ const jwt = require("jsonwebtoken");
 const authConfig = require("./src/config/auth.json");
 
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
-oracledb.initOracleClient({ libDir: "C:\\oracle\\instantclient_21_3" });
+oracledb.initOracleClient({ libDir: process.env.ORACLE_LIB });
 const mysql = require("mysql");
 
-require("dotenv").config();
+require("dotenv").config()
 
 const options = {
-	user: "VIPDEV",
-	password: "eRthk#tomgoYgFi",
-	connectString: "vipbi.cgb8fw1rnzy1.sa-east-1.rds.amazonaws.com:1521/VIPBI",
+	user: process.env.ORACLE_USER,
+	password: process.env.ORACLE_PASSWORD,
+	connectString: process.env.ORACLE_URL,
 };
 
 var db = mysql.createPool({
 	connectionLimit: 10,
-	host: "localhost",
-	user: "root",
-	password: "",
-	database: "menotifique",
+	host: process.env.DB_HOST || "localhost",
+	user: process.env.DB_USER || "",
+	password: process.env.DB_PASSWORD || "",
+	database: process.env.DB_DATABASE || "",
 });
 
 const app = express();
@@ -51,110 +51,143 @@ app.post("/api/getActivation", async (req, res) => {
 			method: "get",
 			url: `https://extranet.vipbrtelecom.com.br/apifacil/v2/erp/contrato_extra.php?contrato=${contract}`,
 			headers: {
-				Authorization: "Bearer MjY3MTguNDU2ODcyMzMxNTEzMTA6MTA6NDc=",
+				Authorization: "Bearer "+process.env.TOKEN_NG,
 			},
 		})
 			.then(function (response) {
+				
+
+				if(response.data.variables.status === 404) {
+					return res.status(404).send({ message: "Contrato não encontrado."});
+				}
+
 				const { cep, localidade, logradouro, bairro } =
 					response.data.variables.return.enderecoInstalacao;
 
-				const query = "SELECT * FROM activation WHERE tag = ?";
+				const query = "SELECT * FROM activation WHERE tag = ? AND date_init <= NOW() AND date_end >= NOW() AND is_active = 1";
 				db.query(query, [tag], (err, result) => {
-					console.log(err, result);
 					if (result.length === 0) {
 						return res
 							.status(404)
-							.send({ error: "Nenhuma tag encontrada" });
+							.send({ error: "Nenhuma ativação com essa tag" });
 					}
 
-					if (!result[0].is_active) {
-						return res
-							.status(404)
-							.send({ error: "Nenhuma tag ativa encontrada" });
-					}
+					var dentroRegra = 0;
 
-					const {
-						id,
-						is_active,
-						date_end,
-						date_init,
-						description,
-						id_category,
-					} = result[0];
+					result.forEach(index => {
+						const {
+							id,
+							is_active,
+							date_end,
+							date_init,
+							description,
+							id_category,
+						} = index;
+						
+						const queryCep = `SELECT count(id) as total FROM cep WHERE number = ? AND id_activation = ?`;
+						db.query(queryCep, [cep, id], (err, result) => { 
+							let data = JSON.parse(JSON.stringify(result));
+							if(data > 0) {
+								dentroRegra = 1;
+							} 
+						})
 
-					const dateNow = new Date().getTime();
-					const dateEnd = new Date(date_end).getTime();
+						const queryDistrict = "SELECT count(id) as total, exception FROM district WHERE name = ? AND city = ? AND id_activation = ?";
+						db.query(queryDistrict, [bairro, localidade, id], (err, result) => { 
+							console.log(result[0].total);
+						})
+					})
 
-					if (dateEnd >= dateNow && is_active === 1) {
-						let query = "";
-						query +=
-							"SELECT cep.number as cep, district.name as district, district.exception as district_exp, city.name as city ";
-						query +=
-							"FROM activation LEFT JOIN cep ON cep.id_activation = activation.id LEFT JOIN district ON ";
-						query +=
-							"district.id_activation = activation.id LEFT JOIN city ON city.id_activation = activation.id WHERE activation.id = ?";
-						db.query(query, [id], (err, result) => {
-							var cepVerify = 0;
-							var districtVerify = 0;
-							var cityVerify = 0;
+					// if (!result[0].is_active) {
+					// 	return res
+					// 		.status(404)
+					// 		.send({ error: "Nenhuma tag ativa encontrada" });
+					// }
 
-							result.forEach((option) => {
-								if (option.cep === cep) {
-									cepVerify++;
-								}
+					// const {
+					// 	id,
+					// 	is_active,
+					// 	date_end,
+					// 	date_init,
+					// 	description,
+					// 	id_category,
+					// } = result[0];
 
-								if (option.city === localidade) {
-									cityVerify++;
-								}
+					// const dateNow = new Date().getTime();
+					// const dateEnd = new Date(date_end).getTime();
 
-								if (option.district === bairro) {
-									if (!option.district_exp) {
-										districtVerify++;
-									} else {
-										cityVerify--;
-									}
-								}
-							});
+					// if (dateEnd >= dateNow && is_active === 1) {
+					// 	let query = "";
+					// 	query +=
+					// 		"SELECT cep.number as cep, district.name as district, district.exception as district_exp, city.name as city ";
+					// 	query +=
+					// 		"FROM activation LEFT JOIN cep ON cep.id_activation = activation.id LEFT JOIN district ON ";
+					// 	query +=
+					// 		"district.id_activation = activation.id LEFT JOIN city ON city.id_activation = activation.id WHERE activation.id = ?";
+					// 	db.query(query, [id], (err, result) => {
+					// 		var cepVerify = 0;
+					// 		var districtVerify = 0;
+					// 		var cityVerify = 0;
 
-							const sum = cepVerify + districtVerify + cityVerify;
-							if (sum >= 1) {
-								const response = async () => {
-									return axios.get(
-										`http://localhost:8000/api/message/tag/${tag}`
-									);
-								};
+					// 		result.forEach((option) => {
+					// 			if (option.cep === cep) {
+					// 				cepVerify++;
+					// 			}
 
-								response()
-									.then((resp) => {
-										return res.status(200).send({
-											tag: tag,
-											description: description,
-											category: id_category,
-											date_init: date_init,
-											date_end: date_end,
-											messages: resp.data.result,
-										});
-									})
-									.catch((err) => {
-										console.log(err);
-										return res
-											.status(400)
-											.send({
-												message:
-													"Nenhuma menssagem encontrada para esse contrato.",
-											});
-									});
-							} else {
-								console.log(err);
-								return res
-									.status(400)
-									.send({
-										message:
-											"Nenhuma menssagem encontrada para esse contrato.",
-									});
-							}
-						});
-					}
+					// 			if (option.city === localidade) {
+					// 				cityVerify++;
+					// 			}
+
+					// 			if (option.district === bairro) {
+					// 				if (!option.district_exp) {
+					// 					districtVerify++;
+					// 				} else {
+					// 					cityVerify--;
+					// 				}
+					// 			}
+					// 		});
+
+					// 		const sum = cepVerify + districtVerify + cityVerify;
+					// 		if (sum >= 1) {
+					// 			const response = async () => {
+					// 				return axios.get(
+					// 					`http://localhost:8000/api/message/tag/${tag}`
+					// 				);
+					// 			};
+
+					// 			response()
+					// 				.then((resp) => {
+					// 					return res.status(200).send({
+					// 						tag: tag,
+					// 						description: description,
+					// 						category: id_category,
+					// 						date_init: date_init,
+					// 						date_end: date_end,
+					// 						messages: resp.data.result,
+					// 					});
+					// 				})
+					// 				.catch((err) => {
+					// 					console.log(err);
+					// 					return res
+					// 						.status(400)
+					// 						.send({
+					// 							message:
+					// 								"Nenhuma menssagem encontrada para esse contrato.",
+					// 						});
+					// 				});
+					// 		} else {
+					// 			console.log(err);
+					// 			return res
+					// 				.status(400)
+					// 				.send({
+					// 					message:
+					// 						"Nenhuma menssagem encontrada para esse contrato.",
+					// 				});
+					// 		}
+					// 	});
+					// } else {
+					// 	return res.status(404).send({ message: "Nenhuma ativação encontrada"})
+					// }
 				});
 			})
 			.catch(function (error) {
@@ -438,7 +471,7 @@ app.delete("/api/message/:id", (req, res) => {
 					return res
 						.status(200)
 						.send({
-							message: "Mensagem deletada com sucesso",
+							message: "Mensagem deletarda com sucesso",
 						});
 				}
 			);
@@ -722,16 +755,22 @@ app.post("/api/city/create", (req, res) => {
 });
 
 app.post("/api/district/create", (req, res) => {
-	const { id_activation, exception, name } = req.body;
-
+	const { id_activation, exception, name, city } = req.body;
 	try {
 		db.query("START TRANSACTION");
 
+		let item = [];
+		if(name.length > 0) {
+			for (let index = 0; index < name.length; index++) {
+				item.push([id_activation, exception, name[index], city[index]]);
+			}
+		}
+
 		const query =
-			"INSERT INTO district (id_activation, exception, name) VALUES ?";
+			"INSERT INTO district (id_activation, exception, name, city) VALUES ?";
 		db.query(
 			query,
-			[name.map((item) => [id_activation, exception, item])],
+			[item],
 			(err, result) => {
 				if (err)
 					return res
@@ -743,7 +782,6 @@ app.post("/api/district/create", (req, res) => {
 			}
 		);
 	} catch (err) {
-		console.log(err);
 		db.query("ROLLBACK TRANSACTION");
 	}
 });
@@ -826,6 +864,7 @@ app.post("/api/activation", async (req, res) => {
 								id_activation: idActivation,
 								exception: district.exception,
 								name: district.districts,
+								city: district.districtsCity,
 							}
 						);
 					}
