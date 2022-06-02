@@ -16,7 +16,7 @@ function CardUra({
     <Card sx={{ minWidth: 400 }} >
       <CardContent>
         <Typography gutterBottom variant="h5" component="div">
-          {id + ' '}{description} <Icon color={(active ? 'success' : 'error')}>circle</Icon>
+          {description} <Icon color={(active ? 'success' : 'error')}>circle</Icon>
         </Typography>
         <Typography variant="body2" color="text.secondary">
             <Stack spacing={2} direction="column">
